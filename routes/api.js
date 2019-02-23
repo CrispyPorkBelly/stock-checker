@@ -38,9 +38,8 @@ module.exports = function (app) {
           return next(err);
         }
         const rawInfo = JSON.parse(body);
-        stockData = (rawInfo["Time Series (Daily)"][dateToday]["4. close"]);
+        stockData = (rawInfo["Time Series (Daily)"]);
         console.log(stockData);
-        response.send(stockData);
       })
       //Send stock price info
       // res.send(stockData);
