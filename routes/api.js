@@ -183,7 +183,11 @@ module.exports = function(app) {
                 })
             });
           } else {
-            res.send({ stockData });
+            if(stockData[0].error) {
+              res.send({'Error': 'Stock data not found. You may have exceed 5 updates per minute. Please wait and try again'});
+            } else {
+              res.send({ stockData });
+            }
           }
         });
       })
