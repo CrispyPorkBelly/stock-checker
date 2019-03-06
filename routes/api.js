@@ -25,10 +25,10 @@ module.exports = function(app) {
       useNewUrlParser: true
     })
     .then(() => {
-      console.log("Successfully connected to database");
+      // console.log("Successfully connected to database");
     })
     .catch(err => {
-      console.log("Failed to connect to database. Exiting now. Error: ", err);
+      // console.log("Failed to connect to database. Exiting now. Error: ", err);
       process.exit();
     });
 
@@ -48,11 +48,14 @@ module.exports = function(app) {
 
     //Retrieve stock data
     return requestPromise(options)
-      .then(response => { 
-        return { stock: stockTicker.toUpperCase(), price: response["Time Series (Daily)"]['2019-03-04']["4. close"]}//dateToday
+      .then(response => {
+          return {
+            stock: stockTicker.toUpperCase(),
+            price: response["Time Series (Daily)"]["2019-03-04"]["4. close"]
+          }; //dateToday
       })
       .catch(err => {
-        return { error: err.message};
+        return { error: err.message };
       });
   }
 
@@ -80,19 +83,33 @@ module.exports = function(app) {
     return dateToday.format("YYYY-MM-DD");
   }
 
-  function storeNewStock (stockTicker, clientIpAddress, isStockLiked) {
-    const newStock = new Stock({
-      "stockTicker": stockTicker,
-      "ip_address": clientIpAddress,
-      "like": isStockLiked
-    });
+  function createAndUpdateStock(stockTicker, clientIpAddress, isStockLiked) {
+     //search filters
+     let query = { stockTicker: stockTicker, ip_address: clientIpAddress+1 };
+     let update = { like: isStockLiked };
+     let options = { upsert: true, new: true, setDefaultsOnInsert: true };
+ 
+     Stock.findOneAndUpdate(query, update, options)
+      .catch(err => {
+       return {
+         message: err.message || "Error occured looking up likes info"
+       };
+     });
+  }
 
-    newStock
-     .save()
-     .catch(err => {
-        return ({
+  function getNumberOfLikes(stockTicker) {
+    let query = { stockTicker: stockTicker };
+    
+    return Stock.find( query )
+     .then( (results) => {
+         return results
+          .filter( stockTicker => stockTicker.like === true) //first filter to see how many have true marked for likes
+          .length //the length of the returned array will be only the ones with likes
+      })
+      .catch(err => {
+        return {
           message: err.message || "Error occured looking up likes info"
-        });
+        };
       });
   }
 
@@ -102,40 +119,73 @@ module.exports = function(app) {
     let secondStock;
 
     //Set variables depending on which field users input stock ticker into
-    if(req.query.stock.constructor === Array) {
+    if (req.query.stock.constructor === Array) {
       firstStock = req.query.stock[0];
       secondStock = req.query.stock[1];
     } else {
       firstStock = req.query.stock;
     }
-    
-    let firstStockPromise = getStockInfo(firstStock, getMostRecentBusinessDate());
-    let secondStockPromise = getStockInfo(secondStock, getMostRecentBusinessDate());
 
-    //x-forwarded-for will give you the ip if client is going through a proxy. Otherwise remoteAddress will give you direct IP
-    
-    let clientIpAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    let firstStockPromise = getStockInfo(
+      firstStock,
+      getMostRecentBusinessDate()
+    );
+    let secondStockPromise = getStockInfo(
+      secondStock,
+      getMostRecentBusinessDate()
+    );
 
-    storeNewStock( firstStock, clientIpAddress, true);
-    storeNewStock( secondStock, clientIpAddress, true);
+    //Update like status of stock in database. If it does not exist, create it
+    let clientIpAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress; //x-forwarded-for will give you the ip if client is going through a proxy. Otherwise remoteAddress will give you direct IP
+    let clientLikeStatus = req.query.like || false;
 
     firstStockPromise
-     .then( (stockInfoOne) => {
-      let stockData = [ stockInfoOne ];
-      return stockData;
-    })
-     .then( stockData => {
-       //only attach a second stockObject to the response if user requested data on a second stock
-       if(secondStock) {
-        secondStockPromise
-        .then( (stockInfoTwo) => {
-          stockData.push(stockInfoTwo);
-          res.send({stockData});
-        })
-       } else {
-        res.send({stockData});
-       }
-     })
+      .then(stockInfoOne => {
+        createAndUpdateStock(firstStock, clientIpAddress, clientLikeStatus);
+        let stockData = [stockInfoOne];
+        return stockData;
+      })
+      .then(stockData => {
+        getNumberOfLikes(firstStock)
+        .then(result => {
+          stockData[0].likes = result;
+          return stockData;
+          // console.log(stockData);
+        }).then(stockData => {
+          //only attach a second stockObject to the response if user requested data on a second stock
+          if (secondStock) {
+            secondStockPromise
+             .then(stockInfoTwo => {
+               createAndUpdateStock(secondStock, clientIpAddress, clientLikeStatus);
+               getNumberOfLikes(secondStock)
+                .then(result => {
+                  // console.log(result);
+                  stockInfoTwo.likes = result;
+                  return stockInfoTwo;
+                }).then(stockInfoTwo => {
+                  stockData.push(stockInfoTwo);
 
+                  if(stockData[0].error || stockData[1].error) {
+                    res.send({'Error': 'Stock data not found. You may have exceed 5 updates per minute. Please wait and try again'});
+                  } else {
+
+                    let firstStockRelativeLikes = stockData[0].likes - stockData[1].likes;
+                    let secondStockRelativeLikes = stockData[1].likes - stockData[0].likes;
+  
+                    stockData[0].rel_likes = firstStockRelativeLikes;
+                    stockData[1].rel_likes = secondStockRelativeLikes;
+  
+                    res.send({ "stockData": [ 
+                      {"stock": stockData[0].stock, "price": stockData[0].price, "rel_likes": stockData[0].rel_likes},
+                      {"stock": stockData[1].stock, "price": stockData[1].price, "rel_likes": stockData[1].rel_likes},
+                    ] });
+                  }
+                })
+            });
+          } else {
+            res.send({ stockData });
+          }
+        });
+      })
   });
 };
