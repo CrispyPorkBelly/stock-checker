@@ -80,27 +80,61 @@ module.exports = function(app) {
     return dateToday.format("YYYY-MM-DD");
   }
 
+  function storeNewStock (stockTicker, clientIpAddress, isStockLiked) {
+    const newStock = new Stock({
+      "stockTicker": stockTicker,
+      "ip_address": clientIpAddress,
+      "like": isStockLiked
+    });
+
+    newStock
+     .save()
+     .catch(err => {
+        return ({
+          message: err.message || "Error occured looking up likes info"
+        });
+      });
+  }
+
   app.route("/api/stock-prices").get(function(req, res) {
     //Capture stock info
-    const firstStock = req.query.stock[0];
-    const secondStock = req.query.stock[1];
+    let firstStock;
+    let secondStock;
+
+    //Set variables depending on which field users input stock ticker into
+    if(req.query.stock.constructor === Array) {
+      firstStock = req.query.stock[0];
+      secondStock = req.query.stock[1];
+    } else {
+      firstStock = req.query.stock;
+    }
     
-    console.log(req.query.stock);
     let firstStockPromise = getStockInfo(firstStock, getMostRecentBusinessDate());
     let secondStockPromise = getStockInfo(secondStock, getMostRecentBusinessDate());
 
+    //x-forwarded-for will give you the ip if client is going through a proxy. Otherwise remoteAddress will give you direct IP
+    
+    let clientIpAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    storeNewStock( firstStock, clientIpAddress, true);
+    storeNewStock( secondStock, clientIpAddress, true);
+
     firstStockPromise
      .then( (stockInfoOne) => {
-      let responseObject = { stockInfoOne }
-      console.log(stockInfoOne);
-      return responseObject;
+      let stockData = [ stockInfoOne ];
+      return stockData;
     })
-     .then( responseObject => {
-       secondStockPromise
+     .then( stockData => {
+       //only attach a second stockObject to the response if user requested data on a second stock
+       if(secondStock) {
+        secondStockPromise
         .then( (stockInfoTwo) => {
-          let finalResponse = { responseObject, stockInfoTwo };
-          res.send(finalResponse);
+          stockData.push(stockInfoTwo);
+          res.send({stockData});
         })
+       } else {
+        res.send({stockData});
+       }
      })
 
   });
