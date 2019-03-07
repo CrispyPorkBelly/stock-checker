@@ -17,8 +17,6 @@ const mongoose = require("mongoose");
 const Stock = require("../models/stock.model");
 mongoose.Promise = global.Promise;
 
-const CONNECTION_STRING = process.env.DB; //MongoClient.connect(CONNECTION_STRING, function(err, db) {});
-
 module.exports = function(app) {
   mongoose
     .connect(process.env.DATABASE_URL, {
