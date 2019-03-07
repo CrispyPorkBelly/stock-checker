@@ -127,6 +127,8 @@ module.exports = function(app) {
       firstStock = req.query.stock;
     }
 
+    console.log(req.query);
+
     let firstStockPromise = getStockInfo(
       firstStock,
       getMostRecentBusinessDate()
