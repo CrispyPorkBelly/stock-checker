@@ -202,7 +202,7 @@ module.exports = function(app) {
                 console.log(stockData[0].error || stockData[1].error);
                 res.send({
                   Error:
-                    "Stock data not found. You may have exceed 5 updates per minute. Please wait and try again"
+                    "Stock data not found. You may have exceed 5 updates per minute. Please check your stock ticker and try again in one minute."
                 });
               } else {
                 res.send({ stockData });
