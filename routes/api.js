@@ -18,15 +18,16 @@ const Stock = require("../models/stock.model");
 mongoose.Promise = global.Promise;
 
 module.exports = function(app) {
+
   mongoose
     .connect(process.env.DATABASE_URL, {
       useNewUrlParser: true
     })
     .then(() => {
-      // console.log("Successfully connected to database");
+      console.log("Successfully connected to database");
     })
     .catch(err => {
-      // console.log("Failed to connect to database. Exiting now. Error: ", err);
+      console.log("Failed to connect to database. Exiting now. Error: ", err);
       process.exit();
     });
 
