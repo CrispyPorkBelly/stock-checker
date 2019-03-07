@@ -45,8 +45,8 @@ module.exports = function(app) {
       json: true
     };
 
-    console.log(stockTicker);
-    console.log(dateToday);
+    console.log('stockerTicker:' + stockTicker);
+    console.log('dateToday:' + dateToday);
 
     //Retrieve stock data
     return requestPromise(options)
