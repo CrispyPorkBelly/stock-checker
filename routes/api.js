@@ -45,20 +45,20 @@ module.exports = function(app) {
       json: true
     };
 
-    console.log('stockerTicker:' + stockTicker);
-    console.log('dateToday:' + dateToday);
-
     //Retrieve stock data
     return requestPromise(options)
       .then(response => {
-        console.log(response);
+        console.log('response');
+        console.log('stockerTicker:' + stockTicker);
+        console.log('dateToday:' + dateToday);
+        console.log({stock: stockTicker.toUpperCase(), price: response["Time Series (Daily)"]['2019-03-06']["4. close"]}); //change back to dayToday
         return {
           stock: stockTicker.toUpperCase(),
-          price: response["Time Series (Daily)"][dateToday]["4. close"]
+          price: response["Time Series (Daily)"]['2019-03-06']["4. close"]
         }; //dateToday
       })
       .catch(err => {
-        console.log({ error: err.message });
+        // console.log({ error: err.message });
         return { error: err.message };
       });
   }
@@ -119,6 +119,8 @@ module.exports = function(app) {
     let firstStock;
     let secondStock;
 
+    console.log(req.query.stock);
+
     //Set variables depending on which field users input stock ticker into
     if (req.query.stock.constructor === Array) {
       firstStock = req.query.stock[0];
@@ -127,16 +129,15 @@ module.exports = function(app) {
       firstStock = req.query.stock;
     }
 
-    console.log(req.query);
-
     let firstStockPromise = getStockInfo(
       firstStock,
       getMostRecentBusinessDate()
     );
-    let secondStockPromise = getStockInfo(
-      secondStock,
-      getMostRecentBusinessDate()
-    );
+
+      let secondStockPromise = getStockInfo(
+        secondStock,
+        getMostRecentBusinessDate()
+      );
 
     //Update like status of stock in database. If it does not exist, create it
     let clientIpAddress =
