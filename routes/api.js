@@ -49,10 +49,10 @@ module.exports = function(app) {
     //Retrieve stock data
     return requestPromise(options)
       .then(response => {
-          return {
-            stock: stockTicker.toUpperCase(),
-            price: response["Time Series (Daily)"]["2019-03-04"]["4. close"]
-          }; //dateToday
+        return {
+          stock: stockTicker.toUpperCase(),
+          price: response["Time Series (Daily)"][dateToday]["4. close"]
+        }; //dateToday
       })
       .catch(err => {
         return { error: err.message };
@@ -79,32 +79,28 @@ module.exports = function(app) {
       case 6:
         dateToday = dateToday.subtract(1, "days"); //Saturday. Get Friday's date
     }
-
     return dateToday.format("YYYY-MM-DD");
   }
 
   function createAndUpdateStock(stockTicker, clientIpAddress, isStockLiked) {
-     //search filters
-     let query = { stockTicker: stockTicker, ip_address: clientIpAddress+1 };
-     let update = { like: isStockLiked };
-     let options = { upsert: true, new: true, setDefaultsOnInsert: true };
- 
-     Stock.findOneAndUpdate(query, update, options)
-      .catch(err => {
-       return {
-         message: err.message || "Error occured looking up likes info"
-       };
-     });
+    //search filters
+    let query = { stockTicker: stockTicker, ip_address: clientIpAddress};
+    let update = { like: isStockLiked };
+    let options = { upsert: true, new: true, setDefaultsOnInsert: true };
+
+    Stock.findOneAndUpdate(query, update, options).catch(err => {
+      return {
+        message: err.message || "Error occured looking up likes info"
+      };
+    });
   }
 
   function getNumberOfLikes(stockTicker) {
     let query = { stockTicker: stockTicker };
-    
-    return Stock.find( query )
-     .then( (results) => {
-         return results
-          .filter( stockTicker => stockTicker.like === true) //first filter to see how many have true marked for likes
-          .length //the length of the returned array will be only the ones with likes
+
+    return Stock.find(query)
+      .then(results => {
+        return results.filter(stockTicker => stockTicker.like === true).length; //first filter to see how many have true marked for likes //the length of the returned array will be only the ones with likes
       })
       .catch(err => {
         return {
@@ -136,7 +132,8 @@ module.exports = function(app) {
     );
 
     //Update like status of stock in database. If it does not exist, create it
-    let clientIpAddress = req.headers["x-forwarded-for"] || req.connection.remoteAddress; //x-forwarded-for will give you the ip if client is going through a proxy. Otherwise remoteAddress will give you direct IP
+    let clientIpAddress =
+      req.headers["x-forwarded-for"] || req.connection.remoteAddress; //x-forwarded-for will give you the ip if client is going through a proxy. Otherwise remoteAddress will give you direct IP
     let clientLikeStatus = req.query.like || false;
 
     firstStockPromise
@@ -147,49 +144,73 @@ module.exports = function(app) {
       })
       .then(stockData => {
         getNumberOfLikes(firstStock)
-        .then(result => {
-          stockData[0].likes = result;
-          return stockData;
-          // console.log(stockData);
-        }).then(stockData => {
-          //only attach a second stockObject to the response if user requested data on a second stock
-          if (secondStock) {
-            secondStockPromise
-             .then(stockInfoTwo => {
-               createAndUpdateStock(secondStock, clientIpAddress, clientLikeStatus);
-               getNumberOfLikes(secondStock)
-                .then(result => {
-                  // console.log(result);
-                  stockInfoTwo.likes = result;
-                  return stockInfoTwo;
-                }).then(stockInfoTwo => {
-                  stockData.push(stockInfoTwo);
+          .then(result => {
+            stockData[0].likes = result;
+            return stockData;
+            // console.log(stockData);
+          })
+          .then(stockData => {
+            //only attach a second stockObject to the response if user requested data on a second stock
+            if (secondStock) {
+              secondStockPromise.then(stockInfoTwo => {
+                createAndUpdateStock(
+                  secondStock,
+                  clientIpAddress,
+                  clientLikeStatus
+                );
+                getNumberOfLikes(secondStock)
+                  .then(result => {
+                    // console.log(result);
+                    stockInfoTwo.likes = result;
+                    return stockInfoTwo;
+                  })
+                  .then(stockInfoTwo => {
+                    stockData.push(stockInfoTwo);
 
-                  if(stockData[0].error || stockData[1].error) {
-                    res.send({'Error': 'Stock data not found. You may have exceed 5 updates per minute. Please wait and try again'});
-                  } else {
+                    if (stockData[0].error || stockData[1].error) {
+                      console.log(stockData[0].error || stockData[1].error);
+                      res.send({
+                        Error:
+                          "Stock data not found. You may have exceed 5 updates per minute. Please check your stock ticker and try again in one minute."
+                      });
+                    } else {
+                      let firstStockRelativeLikes =
+                        stockData[0].likes - stockData[1].likes;
+                      let secondStockRelativeLikes =
+                        stockData[1].likes - stockData[0].likes;
 
-                    let firstStockRelativeLikes = stockData[0].likes - stockData[1].likes;
-                    let secondStockRelativeLikes = stockData[1].likes - stockData[0].likes;
-  
-                    stockData[0].rel_likes = firstStockRelativeLikes;
-                    stockData[1].rel_likes = secondStockRelativeLikes;
-  
-                    res.send({ "stockData": [ 
-                      {"stock": stockData[0].stock, "price": stockData[0].price, "rel_likes": stockData[0].rel_likes},
-                      {"stock": stockData[1].stock, "price": stockData[1].price, "rel_likes": stockData[1].rel_likes},
-                    ] });
-                  }
-                })
-            });
-          } else {
-            if(stockData[0].error) {
-              res.send({'Error': 'Stock data not found. You may have exceed 5 updates per minute. Please wait and try again'});
+                      stockData[0].rel_likes = firstStockRelativeLikes;
+                      stockData[1].rel_likes = secondStockRelativeLikes;
+
+                      res.send({
+                        stockData: [
+                          {
+                            stock: stockData[0].stock,
+                            price: stockData[0].price,
+                            rel_likes: stockData[0].rel_likes
+                          },
+                          {
+                            stock: stockData[1].stock,
+                            price: stockData[1].price,
+                            rel_likes: stockData[1].rel_likes
+                          }
+                        ]
+                      });
+                    }
+                  });
+              });
             } else {
-              res.send({ stockData });
+              if (stockData[0].error) {
+                console.log(stockData[0].error || stockData[1].error);
+                res.send({
+                  Error:
+                    "Stock data not found. You may have exceed 5 updates per minute. Please wait and try again"
+                });
+              } else {
+                res.send({ stockData });
+              }
             }
-          }
-        });
-      })
+          });
+      });
   });
 };

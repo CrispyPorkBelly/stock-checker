@@ -5,7 +5,7 @@
 	"main": "server.js",
 	"scripts": {
 		"start": "node server.js",
-		"test": "mocha -u tdd <test folder>/**.js --recursive --exit"
+		"test": "mocha -u tdd tests/**.js --recursive --exit"
 	},
 	"dependencies": {
 		"body-parser": "^1.15.2",
