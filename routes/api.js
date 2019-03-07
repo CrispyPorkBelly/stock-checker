@@ -45,9 +45,13 @@ module.exports = function(app) {
       json: true
     };
 
+    console.log(stockTicker);
+    console.log(dateToday);
+
     //Retrieve stock data
     return requestPromise(options)
       .then(response => {
+        console.log(response);
         return {
           stock: stockTicker.toUpperCase(),
           price: response["Time Series (Daily)"][dateToday]["4. close"]
