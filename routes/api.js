@@ -51,10 +51,10 @@ module.exports = function(app) {
         console.log('response');
         console.log('stockerTicker:' + stockTicker);
         console.log('dateToday:' + dateToday);
-        console.log({stock: stockTicker.toUpperCase(), price: response["Time Series (Daily)"]['2019-03-06']["4. close"]}); //change back to dayToday
+        console.log({stock: stockTicker.toUpperCase(), price: response["Time Series (Daily)"][dateToday]["4. close"]}); //change back to dayToday
         return {
           stock: stockTicker.toUpperCase(),
-          price: response["Time Series (Daily)"]['2019-03-06']["4. close"]
+          price: response["Time Series (Daily)"][dateToday]["4. close"]
         }; //dateToday
       })
       .catch(err => {
