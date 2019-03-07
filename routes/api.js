@@ -40,7 +40,7 @@ module.exports = function(app) {
         function: "TIME_SERIES_DAILY",
         symbol: stockTicker,
         outputsize: "compact",
-        apikey: 'VSV71O3KBKXN8CRH'//process.env.ALPHA_VANTAGE_API_KEY
+        apikey: process.env.ALPHA_VANTAGE_API_KEY
       },
       json: true
     };
@@ -54,6 +54,7 @@ module.exports = function(app) {
         }; //dateToday
       })
       .catch(err => {
+        console.log({ error: err.message });
         return { error: err.message };
       });
   }
@@ -102,6 +103,7 @@ module.exports = function(app) {
         return results.filter(stockTicker => stockTicker.like === true).length; //first filter to see how many have true marked for likes //the length of the returned array will be only the ones with likes
       })
       .catch(err => {
+        console.log({ error: err.message });
         return {
           message: err.message || "Error occured looking up likes info"
         };
