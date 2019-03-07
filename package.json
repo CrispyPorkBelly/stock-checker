@@ -19,9 +19,9 @@
 		"moment": "^2.24.0",
 		"mongodb": "^2.2.16",
 		"mongoose": "^5.4.17",
+		"node": "^10.11.0",
 		"request": "^2.88.0",
 		"request-promise-native": "^1.0.7",
-		"node": "^11.10.0",
 		"zombie": "^6.1.4"
 	},
 	"engines": {
