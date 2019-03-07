@@ -40,7 +40,7 @@ module.exports = function(app) {
         function: "TIME_SERIES_DAILY",
         symbol: stockTicker,
         outputsize: "compact",
-        apikey: process.env.ALPHA_VANTAGE_API_KEY
+        apikey: 'VSV71O3KBKXN8CRH'//process.env.ALPHA_VANTAGE_API_KEY
       },
       json: true
     };
